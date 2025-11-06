@@ -1,0 +1,54 @@
+# Build Folders
+bin/
+obj/
+out/
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+*.user
+*.userosscache
+*.suo
+*.DotSettings.user
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.vscode/
+
+# NuGet Packages
+*.nupkg
+packages/
+*.snupkg
+.nuget/
+
+# Rider / ReSharper caches
+_ReSharper*/
+*.DotSettings
+
+# Dotnet Tools
+.tool/
+.tools/
+*.dotnet-tools.json
+
+# Log files
+*.log
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# OS generated files
+Thumbs.db
+.DS_Store
+
+# IIS / Web
+*.publishsettings
+*.deploy.cmd
+*.deploy-readme.txt
+
+# Others
+*.vsix
+*.cache
