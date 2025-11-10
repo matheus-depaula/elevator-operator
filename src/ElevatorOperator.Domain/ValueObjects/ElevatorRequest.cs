@@ -3,18 +3,19 @@ using ElevatorOperator.Domain.Exceptions;
 
 namespace ElevatorOperator.Domain.ValueObjects;
 
-public readonly record struct ElevatorRequest
+public class ElevatorRequest
 {
-    public int Floor { get; }
+    public int PickupFloor { get; }
+    public int DestinationFloor { get; }
     public ElevatorDirection Direction { get; }
-    public DateTime RequestTime { get; }
 
-    public ElevatorRequest(int floor)
+    public ElevatorRequest(int pickupFloor, int destinationFloor)
     {
-        if (floor < 1 || floor > 10)
-            throw new InvalidFloorException(floor);
+        if (pickupFloor == destinationFloor)
+            throw new InvalidPickupAndDestinationException(pickupFloor, destinationFloor);
 
-        Floor = floor;
-        RequestTime = DateTime.UtcNow;
+        PickupFloor = pickupFloor;
+        DestinationFloor = destinationFloor;
+        Direction = destinationFloor > pickupFloor ? ElevatorDirection.Up : ElevatorDirection.Down;
     }
 }

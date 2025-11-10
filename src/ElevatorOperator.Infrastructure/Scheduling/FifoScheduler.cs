@@ -6,30 +6,56 @@ namespace ElevatorOperator.Infrastructure.Scheduling;
 
 public class FifoScheduler : IScheduler
 {
+    private readonly Lock _schedulerLock = new();
     private readonly ConcurrentQueue<ElevatorRequest> _requestQueue = new();
 
     public void Enqueue(ElevatorRequest request)
     {
-        _requestQueue.Enqueue(request);
+        lock (_schedulerLock)
+        {
+            _requestQueue.Enqueue(request);
+        }
     }
 
     public ElevatorRequest? GetNext()
     {
-        if (_requestQueue.TryDequeue(out var next))
+        lock (_schedulerLock)
         {
-            return next;
-        }
+            if (_requestQueue.TryDequeue(out var next))
+            {
+                return next;
+            }
 
-        return null;
+            return null;
+        }
+    }
+
+    public ElevatorRequest? PeekNext()
+    {
+        lock (_schedulerLock)
+        {
+            if (_requestQueue.TryPeek(out var next))
+            {
+                return next;
+            }
+
+            return null;
+        }
     }
 
     public int GetPendingCount()
     {
-        return _requestQueue.Count;
+        lock (_schedulerLock)
+        {
+            return _requestQueue.Count;
+        }
     }
 
     public void Clear()
     {
-        while (_requestQueue.TryDequeue(out _)) { }
+        lock (_schedulerLock)
+        {
+            while (_requestQueue.TryDequeue(out _)) { }
+        }
     }
 }

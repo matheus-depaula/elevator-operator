@@ -12,6 +12,10 @@ public class InvalidFloorException(int floor) : ElevatorOperatorException($"Inva
 {
 }
 
+public class InvalidPickupAndDestinationException(int pickup, int destination) : ElevatorOperatorException($"Invalid pickup and destination floors. Pickup: {pickup}, Destination: {destination}. Pair cannot be the same.")
+{
+}
+
 public class InvalidStateTransitionException(ElevatorState current, ElevatorState requested) : ElevatorOperatorException($"Invalid state transition from {current} to {requested}")
 {
 }
