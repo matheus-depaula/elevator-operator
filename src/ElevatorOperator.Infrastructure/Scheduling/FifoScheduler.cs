@@ -1,61 +1,42 @@
 using System.Collections.Concurrent;
 using ElevatorOperator.Application.Interfaces;
-using ElevatorOperator.Domain.ValueObjects;
 
 namespace ElevatorOperator.Infrastructure.Scheduling;
 
-public class FifoScheduler : IScheduler
+public class FifoScheduler<T> : IScheduler<T>
 {
-    private readonly Lock _schedulerLock = new();
-    private readonly ConcurrentQueue<ElevatorRequest> _requestQueue = new();
+    private readonly Lock _lock = new(); // Lock should be object, not Lock struct
+    private readonly ConcurrentQueue<T> _queue = new();
 
-    public void Enqueue(ElevatorRequest request)
+    public void Enqueue(T item)
     {
-        lock (_schedulerLock)
+        lock (_lock)
         {
-            _requestQueue.Enqueue(request);
+            _queue.Enqueue(item);
         }
     }
 
-    public ElevatorRequest? GetNext()
+    public T? GetNext()
     {
-        lock (_schedulerLock)
+        lock (_lock)
         {
-            if (_requestQueue.TryDequeue(out var next))
-            {
-                return next;
-            }
-
-            return null;
+            return _queue.TryDequeue(out var next) ? next : default;
         }
     }
 
-    public ElevatorRequest? PeekNext()
+    public T? PeekNext()
     {
-        lock (_schedulerLock)
+        lock (_lock)
         {
-            if (_requestQueue.TryPeek(out var next))
-            {
-                return next;
-            }
-
-            return null;
+            return _queue.TryPeek(out var next) ? next : default;
         }
     }
 
     public int GetPendingCount()
     {
-        lock (_schedulerLock)
+        lock (_lock)
         {
-            return _requestQueue.Count;
-        }
-    }
-
-    public void Clear()
-    {
-        lock (_schedulerLock)
-        {
-            while (_requestQueue.TryDequeue(out _)) { }
+            return _queue.Count;
         }
     }
 }

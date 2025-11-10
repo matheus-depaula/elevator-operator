@@ -2,11 +2,10 @@ using ElevatorOperator.Domain.ValueObjects;
 
 namespace ElevatorOperator.Application.Interfaces;
 
-public interface IScheduler
+public interface IScheduler<T>
 {
-    void Enqueue(ElevatorRequest request);
-    ElevatorRequest? GetNext();
-    ElevatorRequest? PeekNext();
+    void Enqueue(T request);
+    T? GetNext();
+    T? PeekNext();
     int GetPendingCount();
-    void Clear();
 }

@@ -6,6 +6,7 @@ using ElevatorOperator.Infrastructure.Scheduling;
 using ElevatorOperator.Domain.Interfaces;
 using ElevatorOperator.Domain.Entities;
 using ElevatorOperator.Domain.Adapters;
+using ElevatorOperator.Domain.ValueObjects;
 
 namespace ElevatorOperator.CLI.CompositionRoot;
 
@@ -15,7 +16,7 @@ public static class DependencyInjection
     {
         // Infrastructure
         services.AddSingleton<ILogger, Logger>();
-        services.AddSingleton<IScheduler, FifoScheduler>();
+        services.AddSingleton<IScheduler<ElevatorRequest>, FifoScheduler<ElevatorRequest>>();
 
         // Application
         services.AddSingleton<IElevatorController, ElevatorController>();
