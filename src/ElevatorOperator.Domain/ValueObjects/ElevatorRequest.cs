@@ -9,13 +9,12 @@ public readonly record struct ElevatorRequest
     public ElevatorDirection Direction { get; }
     public DateTime RequestTime { get; }
 
-    public ElevatorRequest(int floor, ElevatorDirection direction)
+    public ElevatorRequest(int floor)
     {
         if (floor < 1 || floor > 10)
             throw new InvalidFloorException(floor);
 
         Floor = floor;
-        Direction = direction;
         RequestTime = DateTime.UtcNow;
     }
 }

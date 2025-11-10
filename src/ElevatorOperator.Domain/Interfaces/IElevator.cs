@@ -4,9 +4,11 @@ namespace ElevatorOperator.Domain.Interfaces;
 
 public interface IElevator
 {
-    int CurrentFloor { get; set; }
-    ElevatorState State { get; set; }
-    List<int> TargetFloors { get; set; }
+    int MinFloor { get; }
+    int MaxFloor { get; }
+    int CurrentFloor { get; }
+    ElevatorState State { get; }
+    IReadOnlyList<int> TargetFloors { get; }
     void MoveUp();
     void MoveDown();
     void OpenDoor();

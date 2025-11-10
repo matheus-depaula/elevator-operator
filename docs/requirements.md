@@ -25,6 +25,7 @@ ElevatorOperator/
    - Contains domain entities, value objects, and interfaces
    - No dependencies on other layers
    - Pure business logic only
+   - Adapter sub-folder: `src/ElevatorOperator.Domain/Adapters/` contains adapters that wrap domain implementations to add validation and convenience methods. Adapters should be thin wrappers that delegate to inner implementations and include unit tests.
 
 2. **Application Layer** (ElevatorOperator.Application)
    - Implements domain interfaces

@@ -1,48 +1,46 @@
-using ElevatorOperator.Domain.Enums;
 using ElevatorOperator.Domain.Interfaces;
-using ElevatorOperator.Domain.Entities;
 using ElevatorOperator.Application.Interfaces;
+using ElevatorOperator.Domain.ValueObjects;
 
 namespace ElevatorOperator.Application.Services;
 
-public class ElevatorController : IElevatorController
+public class ElevatorController(IElevatorAdapter elevator, IScheduler scheduler, ILogger logger) : IElevatorController
 {
-    public IElevator Elevator = new Elevator();
-    public void ProcessRequests()
-    {
-        while (this.Elevator.TargetFloors.Count > 0)
-        {
-            var targetFloor = this.Elevator.TargetFloors[0];
-            ElevatorDirection direction = targetFloor > this.Elevator.CurrentFloor ? ElevatorDirection.Up : ElevatorDirection.Down;
+    private readonly IElevatorAdapter Elevator = elevator;
+    private readonly IScheduler _scheduler = scheduler;
+    private readonly ILogger _logger = logger;
+    private readonly Lock _syncLock = new();
 
-            Console.WriteLine($"[ElevatorController] Moving to floor {targetFloor}");
-
-            while (this.Elevator.CurrentFloor != targetFloor)
-            {
-                if (direction == ElevatorDirection.Up)
-                {
-                    this.Elevator.State = ElevatorState.MovingUp;
-                    this.Elevator.MoveUp();
-                }
-                else
-                {
-                    this.Elevator.State = ElevatorState.MovingDown;
-                    this.Elevator.MoveDown();
-                }
-            }
-
-            Console.WriteLine($"[ElevatorController] Arrived at floor {targetFloor}");
-            this.Elevator.State = ElevatorState.Idle;
-            Console.WriteLine($"[ElevatorController] Opening the door");
-            this.Elevator.OpenDoor();
-            Console.WriteLine($"[ElevatorController] Closing the door");
-            this.Elevator.CloseDoor();
-
-            this.Elevator.TargetFloors.RemoveAt(0);
-        }
-    }
     public void RequestElevator(int floor)
     {
-        this.Elevator.AddRequest(floor);
+        lock (_syncLock)
+        {
+            var request = new ElevatorRequest(floor);
+
+            _scheduler.Enqueue(request);
+
+            _logger.Info($"Received request for floor {floor}");
+        }
+    }
+
+    public void ProcessRequests()
+    {
+        lock (_syncLock)
+        {
+            while (_scheduler.GetPendingCount() > 0)
+            {
+                var nextRequest = _scheduler.GetNext();
+                if (nextRequest == null)
+                    break;
+
+                var targetFloor = nextRequest.Value.Floor;
+
+                _logger.Info($"Processing request for floor {targetFloor}");
+
+                Elevator.MoveToFloor(targetFloor);
+
+                _logger.Info($"Arrived at floor {targetFloor}");
+            }
+        }
     }
 }

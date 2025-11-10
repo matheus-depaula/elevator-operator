@@ -12,6 +12,10 @@ This project implements an elevator control system that:
 
 For detailed technical specifications and architecture details, see the [Requirements Documentation](docs/requirements.md).
 
+Adapter pattern:
+- The project uses adapters to extend domain implementations without changing their contracts. See `src/ElevatorOperator.Domain/Adapters/ElevatorAdapter.cs` for an example.
+- Adapters add validation and convenience methods (e.g., move-to-target helpers). Keep adapters in the Domain layer and add unit tests when modifying them.
+
 ## Prerequisites
 
 - .NET 9 SDK

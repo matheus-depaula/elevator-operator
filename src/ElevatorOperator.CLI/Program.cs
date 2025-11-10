@@ -1,13 +1,16 @@
 ﻿using ElevatorOperator.Application.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using ElevatorOperator.CLI.CompositionRoot;
+using ElevatorOperator.Domain.Exceptions;
 
 internal partial class Program
 {
-    private static async Task Main(string[] args)
+    private static async Task Main()
     {
-        var provider = new ServiceCollection().AddElevatorOperator().BuildServiceProvider();
-        var elevatorController = provider.GetRequiredService<IElevatorController>();
+        var services = new ServiceCollection().AddElevatorOperator().BuildServiceProvider();
+
+        var controller = services.GetRequiredService<IElevatorController>();
+        var logger = services.GetRequiredService<ILogger>();
 
         Console.WriteLine("=== Elevator Control System CLI ===");
 
@@ -17,8 +20,11 @@ internal partial class Program
             Console.Write("> ");
             var input = Console.ReadLine();
 
-            if (input == null) continue;
-            if (input.Trim().Equals("exit", StringComparison.CurrentCultureIgnoreCase)) break;
+            if (input == null)
+                continue;
+
+            if (input.Trim().Equals("exit", StringComparison.CurrentCultureIgnoreCase))
+                break;
 
             var requestedFloors = input
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
@@ -31,14 +37,28 @@ internal partial class Program
                 continue;
             }
 
-            foreach (var requestedFloor in requestedFloors!)
+            var tasks = requestedFloors.Select(async floor =>
             {
-                var floor = requestedFloor!.Value;
-                // Testing stuff
-                Console.WriteLine($"[CLI] Requesting elevator to floor {floor}");
-                await Task.Run(() => elevatorController.RequestElevator(floor));
-                await Task.Run(() => elevatorController.ProcessRequests());
-            }
+                try
+                {
+                    await Task.Run(() => controller.RequestElevator(floor!.Value));
+                }
+                catch (ElevatorOperatorException ex) when (ex is InvalidFloorException)
+                {
+                    logger.Warn(ex.Message);
+                }
+                catch (ElevatorOperatorException ex)
+                {
+                    logger.Error("Elevator operation error.", ex);
+                }
+                catch (Exception ex)
+                {
+                    logger.Error("Unexpected error occurred.", ex);
+                }
+            });
+
+            await Task.WhenAll(tasks);
+            await Task.Run(controller.ProcessRequests);
         }
     }
 }

@@ -1,14 +1,35 @@
+using System.Collections.Concurrent;
 using ElevatorOperator.Application.Interfaces;
+using ElevatorOperator.Domain.ValueObjects;
 
 namespace ElevatorOperator.Infrastructure.Scheduling;
 
-public class FifoScheduler : IElevatorScheduler
+public class FifoScheduler : IScheduler
 {
-    public int? GetNextFloor(Queue<int> pendingRequests)
-    {
-        if (pendingRequests.Count == 0)
-            return null;
+    private readonly ConcurrentQueue<ElevatorRequest> _requestQueue = new();
 
-        return pendingRequests.Dequeue();
+    public void Enqueue(ElevatorRequest request)
+    {
+        _requestQueue.Enqueue(request);
+    }
+
+    public ElevatorRequest? GetNext()
+    {
+        if (_requestQueue.TryDequeue(out var next))
+        {
+            return next;
+        }
+
+        return null;
+    }
+
+    public int GetPendingCount()
+    {
+        return _requestQueue.Count;
+    }
+
+    public void Clear()
+    {
+        while (_requestQueue.TryDequeue(out _)) { }
     }
 }
