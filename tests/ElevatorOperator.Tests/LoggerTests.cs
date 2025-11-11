@@ -1,6 +1,5 @@
 using ElevatorOperator.Infrastructure.Logging;
 using FluentAssertions;
-using System.IO;
 
 namespace ElevatorOperator.Tests;
 

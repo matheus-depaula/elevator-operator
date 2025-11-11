@@ -46,6 +46,7 @@ public class Logger : ILogger
                 Console.WriteLine(ex.StackTrace);
             }
 
+            Console.Out.Flush();
             Console.ResetColor();
         }
     }

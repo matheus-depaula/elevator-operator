@@ -4,12 +4,25 @@ using ElevatorOperator.CLI.CompositionRoot;
 
 internal partial class Program
 {
-    private static async Task Main()
+    private static async Task Main(string[] args)
     {
         var services = new ServiceCollection().AddElevatorOperator().BuildServiceProvider();
 
         var controller = services.GetRequiredService<IElevatorController>();
         var logger = services.GetRequiredService<ILogger>();
+
+        if (args.Contains("--benchmark"))
+        {
+            int requestCount = 200;
+
+            var countArg = args.SkipWhile(a => a != "--benchmark").Skip(1).FirstOrDefault();
+
+            if (countArg != null && int.TryParse(countArg, out var parsed))
+                requestCount = parsed;
+
+            await RunBenchmark(controller, logger, requestCount);
+            return;
+        }
 
         var cts = new CancellationTokenSource();
 
@@ -47,7 +60,6 @@ internal partial class Program
 
             try
             {
-                // Support multiple pairs separated by commas
                 var pairs = input.Split(',', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var pair in pairs)
                 {
@@ -71,6 +83,7 @@ internal partial class Program
                 logger.Error("Error handling user input.", ex);
             }
 
+            logger.Info("Waiting for elevator to complete remaining requests...");
         }
 
         try
@@ -83,5 +96,49 @@ internal partial class Program
         }
 
         logger.Info("Elevator system stopped safely.");
+    }
+
+    private static async Task RunBenchmark(IElevatorController controller, ILogger logger, int requestCount = 200)
+    {
+        var rnd = new Random();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        logger.Info($"Starting benchmark with {requestCount} concurrent requests...");
+
+        long memBefore = GC.GetTotalMemory(forceFullCollection: true);
+
+        var tasks = Enumerable.Range(0, requestCount).Select(i => Task.Run(() =>
+        {
+            int pickup = rnd.Next(1, 10);
+            int destination;
+            do
+            {
+                destination = rnd.Next(1, 10);
+            } while (destination == pickup);
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            controller.RequestElevator(pickup, destination);
+            sw.Stop();
+
+            return sw.ElapsedMilliseconds;
+        }));
+
+        var results = await Task.WhenAll(tasks);
+
+        stopwatch.Stop();
+
+        long memAfter = GC.GetTotalMemory(forceFullCollection: true);
+        double avgLatency = results.Average();
+        double maxLatency = results.Max();
+
+        logger.Info($"Benchmark complete:");
+        logger.Info($"  Total Requests: {requestCount}");
+        logger.Info($"  Avg Assignment Time: {avgLatency:F2} ms");
+        logger.Info($"  Max Assignment Time: {maxLatency:F2} ms");
+        logger.Info($"  Total Duration: {stopwatch.ElapsedMilliseconds / 1000.0:F2} s");
+        logger.Info($"  Memory Used: {(memAfter - memBefore) / 1024.0 / 1024.0:F2} MB");
+
+        Console.WriteLine("\nPress ENTER to exit benchmark...");
+        Console.ReadLine();
     }
 }
