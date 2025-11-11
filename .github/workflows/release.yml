@@ -1,0 +1,39 @@
+name: 🚀 Build and Release ElevatorOperator
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build executables (macOS + Windows)
+        run: bash scripts/build.sh
+
+      - name: Zip builds
+        run: |
+          cd dist
+          zip -r ElevatorOperator-mac.zip osx-arm64
+          zip -r ElevatorOperator-win.zip win-x64
+          cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/ElevatorOperator-mac.zip
+            dist/ElevatorOperator-win.zip
+            dist/ElevatorOperator-linux.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
