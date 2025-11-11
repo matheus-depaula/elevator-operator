@@ -37,54 +37,47 @@ public class ElevatorAdapterTests
     [Fact]
     public void MoveUp_Should_Increment_CurrentFloor_When_Possible()
     {
-        _innerElevator.CurrentFloor = 2;
-        _innerElevator.State = ElevatorState.MovingUp;
-
+        _adapter.AddRequest(3);
         _adapter.MoveUp();
 
-        _innerElevator.CurrentFloor.Should().Be(3);
+        _innerElevator.CurrentFloor.Should().Be(2);
     }
 
     [Fact]
     public void MoveDown_Should_Decrement_CurrentFloor_When_Possible()
     {
-        _innerElevator.CurrentFloor = 5;
-        _innerElevator.State = ElevatorState.MovingDown;
-
+        _adapter.AddRequest(1);
+        _adapter.MoveUp();
+        _adapter.MoveUp();
+        _adapter.MoveUp();
         _adapter.MoveDown();
-
-        _innerElevator.CurrentFloor.Should().Be(4);
-    }
-
-    [Fact]
-    public void MoveToTarget_Should_Reach_Target_Floor()
-    {
-        _innerElevator.CurrentFloor = 1;
-
-        _adapter.MoveToTarget(4);
-
-        _innerElevator.CurrentFloor.Should().Be(4);
-        _innerElevator.State.Should().Be(ElevatorState.Idle);
-    }
-
-    [Fact]
-    public void MoveToTarget_Should_Move_Down_When_Target_Is_Lower()
-    {
-        _innerElevator.CurrentFloor = 6;
-
-        _adapter.MoveToTarget(3);
 
         _innerElevator.CurrentFloor.Should().Be(3);
     }
 
     [Fact]
-    public void OpenAndCloseDoor_Should_Update_State_Correctly()
+    public void MoveToFloor_Should_Reach_Target_Floor()
     {
-        _innerElevator.State = ElevatorState.Idle;
+        _adapter.MoveToFloor(4);
 
-        _adapter.OpenDoor();
-        _adapter.CloseDoor();
-
+        _innerElevator.CurrentFloor.Should().Be(4);
         _innerElevator.State.Should().Be(ElevatorState.Idle);
+    }
+
+    [Fact]
+    public void MoveToFloor_Should_Move_Down_When_Target_Is_Lower()
+    {
+        _adapter.MoveToFloor(6);
+        _adapter.MoveToFloor(3);
+
+        _innerElevator.CurrentFloor.Should().Be(3);
+    }
+
+    [Fact]
+    public void AddRequest_Should_Throw_For_Floor_Above_Max()
+    {
+        Action act = () => _adapter.AddRequest(11);
+
+        act.Should().Throw<InvalidFloorException>();
     }
 }
