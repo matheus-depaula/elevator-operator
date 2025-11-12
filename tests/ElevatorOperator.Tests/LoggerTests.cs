@@ -7,16 +7,19 @@ public class LoggerTests : IDisposable
 {
     private readonly Logger _logger;
     private readonly StringWriter _stringWriter;
+    private readonly TextWriter _originalOut;
 
     public LoggerTests()
     {
-        _logger = new Logger();
         _stringWriter = new StringWriter();
+        _originalOut = Console.Out;
         Console.SetOut(_stringWriter);
+        _logger = new Logger();
     }
 
     public void Dispose()
     {
+        Console.SetOut(_originalOut);
         _stringWriter?.Dispose();
     }
 
