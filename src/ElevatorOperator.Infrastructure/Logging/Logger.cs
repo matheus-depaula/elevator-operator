@@ -11,40 +11,42 @@ public class Logger : ILogger
 
     public void Info(string message)
     {
-        Console.ForegroundColor = ConsoleColor.Blue;
-        Log("INFO", message);
+        Log("INFO", message, ConsoleColor.Blue);
     }
 
     public void Warn(string message)
     {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Log("WARN", message);
+        Log("WARN", message, ConsoleColor.Yellow);
     }
 
     public void Error(string message, Exception? ex = null)
     {
-        Console.ForegroundColor = ConsoleColor.DarkRed;
-        Log("ERROR", message, ex);
+        Log("ERROR", message, ConsoleColor.DarkRed, ex);
     }
 
 
-    private void Log(string level, string message, Exception? ex = null)
+    private void Log(string level, string message, ConsoleColor color, Exception? ex = null)
     {
         var declaringType = GetCallingClassName();
 
-        _synchronizedOutput.WriteLine($"[{Timestamp}] [{level}] [{declaringType}] {message}");
-
-        if (ex != null)
+        lock (Console.Out)
         {
-            _synchronizedOutput.WriteLine($"[{Timestamp}] [EXCEPTION] {ex.GetType().Name}: {ex.Message}");
-            _synchronizedOutput.WriteLine(ex.StackTrace);
-        }
+            Console.ForegroundColor = color;
 
-        _synchronizedOutput.Flush();
-        Console.ResetColor();
+            _synchronizedOutput.WriteLine($"[{Timestamp}] [{level}] [{declaringType}] {message}");
+
+            if (ex != null)
+            {
+                _synchronizedOutput.WriteLine($"[{Timestamp}] [EXCEPTION] {ex.GetType().Name}: {ex.Message}");
+                _synchronizedOutput.WriteLine(ex.StackTrace);
+            }
+
+            _synchronizedOutput.Flush();
+            Console.ResetColor();
+        }
     }
 
-    private string GetCallingClassName()
+    private static string GetCallingClassName()
     {
         var stackTrace = new StackTrace();
 

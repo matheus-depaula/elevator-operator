@@ -6,7 +6,7 @@ using ElevatorOperator.Domain.Enums;
 
 namespace ElevatorOperator.Application.Services;
 
-public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRequest> scheduler, ILogger logger) : IElevatorController
+public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRequest> scheduler, ILogger logger) : IElevatorController, IDisposable
 {
     private const int MaxRetries = 1;
     private static readonly TimeSpan OperationTimeout = TimeSpan.FromSeconds(5);
@@ -14,6 +14,8 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
     private readonly IScheduler<ElevatorRequest> _scheduler = scheduler;
     private readonly ILogger _logger = logger;
     private readonly object _lock = new();
+    private volatile bool _isProcessing = false;
+    private readonly AutoResetEvent _doorOperationComplete = new(true);
 
     public void RequestElevator(int pickup, int destination)
     {
@@ -34,39 +36,46 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
 
     public void ProcessRequests(CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
-        {
-            ElevatorRequest? request = null;
+        if (Interlocked.CompareExchange(ref _isProcessing, true, false))
+            throw new InvalidOperationException("ProcessRequests is already running. Only one instance can process requests at a time.");
 
-            lock (_lock)
+        try
+        {
+            while (!ct.IsCancellationRequested)
             {
-                if (_scheduler.GetPendingCount() == 0)
+                ElevatorRequest? request = null;
+
+                lock (_lock)
                 {
-                    Monitor.Wait(_lock, TimeSpan.FromMilliseconds(500));
-                    continue;
+                    request = _scheduler.GetNext();
+
+                    if (request == null)
+                    {
+                        Monitor.Wait(_lock, TimeSpan.FromMilliseconds(500));
+                        continue;
+                    }
                 }
 
-                request = _scheduler.GetNext();
-            }
+                try
+                {
+                    HandleRequest(request);
+                }
+                catch (ElevatorOperatorException ex)
+                {
+                    _logger.Warn($"Elevator domain issue: {ex.Message}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error("Unexpected error while processing request.", ex);
+                }
 
-            if (request == null)
-                break;
+                Console.WriteLine();
 
-            try
-            {
-                HandleRequest(request);
             }
-            catch (ElevatorOperatorException ex)
-            {
-                _logger.Warn($"Elevator domain issue: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                _logger.Error("Unexpected error while processing request.", ex);
-            }
-
-            Console.WriteLine();
-
+        }
+        finally
+        {
+            _isProcessing = false;
         }
     }
 
@@ -115,6 +124,8 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
 
     private void SafeDoorOperation(Action doorAction, DoorOperation operation, int floor)
     {
+        _doorOperationComplete.Reset();
+
         try
         {
             if ((operation == DoorOperation.Opening && Elevator.State == ElevatorState.DoorOpen) ||
@@ -137,6 +148,10 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
         catch (Exception ex)
         {
             _logger.Error($"Unexpected error while {operation.ToString().ToLower()} doors at floor {floor}.", ex);
+        }
+        finally
+        {
+            _doorOperationComplete.Set();
         }
     }
 
@@ -201,5 +216,11 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
         return pickup != destination &&
                pickup >= Elevator.MinFloor && pickup <= Elevator.MaxFloor &&
                destination >= Elevator.MinFloor && destination <= Elevator.MaxFloor;
+    }
+
+    public void Dispose()
+    {
+        _doorOperationComplete?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
