@@ -20,7 +20,7 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Build executables (macOS + Windows)
+      - name: Build executables
         run: bash scripts/build.sh
 
       - name: Zip builds
@@ -33,9 +33,6 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/ElevatorOperator-mac.zip
-            dist/ElevatorOperator-win.zip
-            dist/ElevatorOperator-linux.zip
+          files: dist/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
