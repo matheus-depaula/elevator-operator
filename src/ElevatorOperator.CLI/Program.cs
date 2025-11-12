@@ -82,8 +82,6 @@ internal partial class Program
             {
                 logger.Error("Error handling user input.", ex);
             }
-
-            logger.Info("Waiting for elevator to complete remaining requests...");
         }
 
         try

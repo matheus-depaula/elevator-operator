@@ -36,6 +36,8 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
     {
         while (!ct.IsCancellationRequested)
         {
+            ElevatorRequest? request = null;
+
             lock (_lock)
             {
                 if (_scheduler.GetPendingCount() == 0)
@@ -44,24 +46,27 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
                     continue;
                 }
 
-                try
-                {
-                    var request = _scheduler.GetNext();
-                    if (request == null)
-                        break;
-
-                    HandleRequest(request);
-                    Console.WriteLine();
-                }
-                catch (ElevatorOperatorException ex)
-                {
-                    _logger.Warn($"Elevator domain issue: {ex.Message}");
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error("Unexpected error while processing request.", ex);
-                }
+                request = _scheduler.GetNext();
             }
+
+            if (request == null)
+                break;
+
+            try
+            {
+                HandleRequest(request);
+            }
+            catch (ElevatorOperatorException ex)
+            {
+                _logger.Warn($"Elevator domain issue: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Unexpected error while processing request.", ex);
+            }
+
+            Console.WriteLine();
+
         }
     }
 
@@ -72,10 +77,8 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
 
         // Pickup phase
         ExecuteWithRetry(() => MoveToFloor(request.PickupFloor), "move to pickup");
-        if (Elevator.CurrentFloor != request.PickupFloor)
-            SafeDoorOperation(Elevator.OpenDoor, DoorOperation.Opening, request.PickupFloor);
-        if (Elevator.State == ElevatorState.DoorOpen)
-            SafeDoorOperation(Elevator.CloseDoor, DoorOperation.Closing, request.PickupFloor);
+        SafeDoorOperation(Elevator.OpenDoor, DoorOperation.Opening, request.PickupFloor);
+        SafeDoorOperation(Elevator.CloseDoor, DoorOperation.Closing, request.PickupFloor);
 
         // Destination phase
         ExecuteWithRetry(() => MoveToFloor(request.DestinationFloor), "move to destination");
@@ -112,12 +115,31 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
 
     private void SafeDoorOperation(Action doorAction, DoorOperation operation, int floor)
     {
-        ExecuteWithRetry(() =>
+        try
         {
-            doorAction();
-            _logger.Info($"{operation} doors at floor {floor}.");
-        }, $"{operation} doors");
+            if ((operation == DoorOperation.Opening && Elevator.State == ElevatorState.DoorOpen) ||
+                (operation == DoorOperation.Closing && Elevator.State == ElevatorState.Idle))
+            {
+                _logger.Info($"Skipped redundant {operation.ToString().ToLower()} doors at floor {floor} (already in correct state).");
+                return;
+            }
+
+            ExecuteWithRetry(() =>
+            {
+                doorAction();
+                _logger.Info($"{operation} doors at floor {floor}.");
+            }, $"{operation} doors");
+        }
+        catch (InvalidStateTransitionException)
+        {
+            _logger.Warn($"Skipped invalid {operation.ToString().ToLower()} doors at floor {floor} (state conflict).");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Unexpected error while {operation.ToString().ToLower()} doors at floor {floor}.", ex);
+        }
     }
+
 
     private void ExecuteWithRetry(Action action, string context)
     {
