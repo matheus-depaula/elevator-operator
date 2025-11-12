@@ -24,7 +24,6 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Debug
 
-    # 🧠 Run tests with retry and detailed logging
     - name: Run tests with retry
       id: run-tests
       run: |
@@ -43,13 +42,16 @@ jobs:
             --logger "console;verbosity=detailed" || echo "::error::Tests failed again after retry."
         fi
 
-    # 📊 Generate HTML report
+    # 📊 Generate HTML test report using ReportGenerator
     - name: Generate HTML report
       if: always()
       run: |
-        dotnet tool install -g trx2html
+        dotnet tool install -g dotnet-reportgenerator-globaltool
         export PATH="$PATH:~/.dotnet/tools"
-        trx2html TestResults/**/*.trx -o TestResults/report.html
+        reportgenerator \
+          -reports:"TestResults/**/*.trx" \
+          -targetdir:"TestResults/report" \
+          -reporttypes:HtmlInline_AzurePipelines
 
     # 📦 Upload all test results
     - name: Upload test artifacts
@@ -59,9 +61,8 @@ jobs:
         name: dotnet-test-results
         path: |
           TestResults/**/*.trx
-          TestResults/report.html
+          TestResults/report/**
 
-    # 🚦 Optional: fail job if all retries failed
     - name: Check test outcome
       if: always()
       run: |
