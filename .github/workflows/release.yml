@@ -28,6 +28,7 @@ jobs:
           cd dist
           zip -r ElevatorOperator-mac.zip osx-arm64
           zip -r ElevatorOperator-win.zip win-x64
+          zip -r ElevatorOperator-linux.zip linux-x64
           cd ..
 
       - name: Create GitHub Release
