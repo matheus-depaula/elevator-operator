@@ -1,5 +1,3 @@
-using ElevatorOperator.Domain.ValueObjects;
-
 namespace ElevatorOperator.Application.Interfaces;
 
 public interface IScheduler<T>

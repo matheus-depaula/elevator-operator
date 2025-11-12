@@ -69,9 +69,10 @@ ElevatorOperator/
 ## Technical Specifications
 
 ### Threading Model
-- Use `ConcurrentQueue<T>` for request management
-- Implement thread-safe state transitions using locks
-- Use `CancellationToken` for timeout handling
+- Use `Lock` struct (C# 13) for synchronous state management with monitor semantics
+- Implement thread-safe state transitions using `lock(_syncLock)`
+- Use `ConcurrentQueue<T>` for thread-safe request management
+- Simulate delays with `Thread.Sleep()` **outside** lock to prevent blocking
 
 ### State Management
 ```csharp
@@ -80,28 +81,27 @@ public enum ElevatorState
     Idle,
     MovingUp,
     MovingDown,
-    DoorOpen,
-    Error
+    DoorOpen
 }
 
 public enum ElevatorDirection
 {
     Up,
-    Down,
-    None
+    Down
 }
 ```
 
 ### Error Handling
 1. Custom Exceptions:
-   - `InvalidFloorException`
-   - `ElevatorTimeoutException`
-   - `InvalidStateTransitionException`
+   - `InvalidFloorException`: Floor outside 1-10 range
+   - `InvalidStateTransitionException`: Invalid state transition attempt
+   - `InvalidPickupAndDestinationException`: Pickup equals destination
+   - `ElevatorTimeoutException`: Operation exceeded timeout threshold
 
 2. Validation Rules:
-   - Floor range: 1-10
-   - Valid state transitions only
-   - Request queue capacity limits
+   - Floor range: 1-10 (validated at adapter layer)
+   - Valid state transitions only (checked via `IsValidStateTransition()`)
+   - Pickup ≠ destination (enforced in `ElevatorRequest` value object)
 
 ### Logging Requirements
 - Operation timestamps

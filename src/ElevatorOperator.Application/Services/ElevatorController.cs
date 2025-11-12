@@ -27,17 +27,23 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
 
             _scheduler.Enqueue(new ElevatorRequest(pickup, destination));
             _logger.Info($"Received request: pickup at floor {pickup}, destination {destination}.");
+
+            Monitor.Pulse(_lock);
         }
     }
 
-    public void ProcessRequests()
+    public void ProcessRequests(CancellationToken ct)
     {
-        lock (_lock)
+        while (!ct.IsCancellationRequested)
         {
-            Console.WriteLine();
-
-            while (_scheduler.GetPendingCount() > 0)
+            lock (_lock)
             {
+                if (_scheduler.GetPendingCount() == 0)
+                {
+                    Monitor.Wait(_lock, TimeSpan.FromMilliseconds(500));
+                    continue;
+                }
+
                 try
                 {
                     var request = _scheduler.GetNext();
@@ -58,6 +64,7 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
             }
         }
     }
+
 
     private void HandleRequest(ElevatorRequest request)
     {
