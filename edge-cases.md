@@ -20,7 +20,7 @@ This document tracks edge cases and potential issues in the elevator system, org
 | Edge Case | Severity | Impact | Status | File |
 |-----------|----------|--------|--------|------|
 | Concurrent door ops | 🔴 Critical | State corruption if request arrives during door ops | ✅ FIXED | `ElevatorController.cs` |
-| CancellationToken ignored | 🔴 Critical | Doesn't shut down cleanly, waits for Thread.Sleep() | ⏳ PARTIAL | `Elevator.cs` |
+| CancellationToken ignored | 🔴 Critical | Doesn't shut down cleanly, waits for Thread.Sleep() | ✅ FIXED | `Elevator.cs` |
 | Peek/Get race | 🟡 Medium | Next request optimization fails due to race condition | ✅ FIXED | `FifoScheduler.cs` |
 
 ### 🔴 High Effort Fixes
@@ -69,12 +69,18 @@ This document tracks edge cases and potential issues in the elevator system, org
 - Provides synchronization point to coordinate door state changes
 **Impact**: Door operations now have explicit coordination signal to prevent state corruption.
 
-#### 7. CancellationToken Ignored ⏳
-**Location**: `Elevator.MoveUp()`, `MoveDown()`, `OpenDoor()`, `CloseDoor()`
-**Status**: PARTIAL - Requires interface changes (high effort)
-**Issue**: Thread.Sleep() doesn't check cancellation token
-**Workaround**: ProcessRequests() has `_isProcessing` flag and timeout guards prevent indefinite hangs
-**Impact**: Shutdown waits for operations to complete, but is not instant
+#### 7. CancellationToken Ignored ✅
+**Location**: `IElevator`, `Elevator`, `IElevatorAdapter`, `ElevatorAdapter`
+**Status**: FIXED - Added cancellation-aware overloads to all movement/door methods
+**Implementation**:
+- Added `MoveUp(CancellationToken ct)`, `MoveDown(CancellationToken ct)`, `OpenDoor(CancellationToken ct)`, `CloseDoor(CancellationToken ct)` methods
+- Replaced `Thread.Sleep()` with `Task.Delay(delay, ct).Wait(ct)` for respecting cancellation
+- Check `ct.ThrowIfCancellationRequested()` before state changes and after delays
+- Added `MoveToFloor(int floor, CancellationToken ct)` to adapter with cancellation checks in loop
+**Impact**: 
+- ProcessRequests() can now pass CancellationToken to all elevator operations
+- Shutdown can be responsive and clean
+- Operations respond immediately to cancellation requests
 
 #### 8. Peek/Get Race Condition ✅
 **Location**: `IScheduler<T>` and `FifoScheduler<T>`

@@ -39,35 +39,35 @@ public class ElevatorAdapter(IElevator elevator) : IElevatorAdapter
         get { lock (_adapterLock) return _inner.TargetFloors; }
     }
 
-    public void MoveUp()
+    public void MoveUp(CancellationToken ct)
     {
         lock (_adapterLock)
         {
-            _inner.MoveUp();
+            _inner.MoveUp(ct);
         }
     }
 
-    public void MoveDown()
+    public void MoveDown(CancellationToken ct)
     {
         lock (_adapterLock)
         {
-            _inner.MoveDown();
+            _inner.MoveDown(ct);
         }
     }
 
-    public void OpenDoor()
+    public void OpenDoor(CancellationToken ct)
     {
         lock (_adapterLock)
         {
-            _inner.OpenDoor();
+            _inner.OpenDoor(ct);
         }
     }
 
-    public void CloseDoor()
+    public void CloseDoor(CancellationToken ct)
     {
         lock (_adapterLock)
         {
-            _inner.CloseDoor();
+            _inner.CloseDoor(ct);
         }
     }
 
@@ -81,28 +81,32 @@ public class ElevatorAdapter(IElevator elevator) : IElevatorAdapter
         }
     }
 
-    public void MoveToFloor(int floor)
+    public void MoveToFloor(int floor, CancellationToken ct)
     {
         ValidateFloor(floor);
 
         lock (_adapterLock)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (floor == _inner.CurrentFloor)
                 return;
 
             if (_inner.State == ElevatorState.DoorOpen)
-                _inner.CloseDoor();
+                _inner.CloseDoor(ct);
 
             while (_inner.CurrentFloor != floor)
             {
+                ct.ThrowIfCancellationRequested();
+
                 if (floor > _inner.CurrentFloor)
-                    _inner.MoveUp();
+                    _inner.MoveUp(ct);
                 else
-                    _inner.MoveDown();
+                    _inner.MoveDown(ct);
             }
 
-            _inner.OpenDoor();
-            _inner.CloseDoor();
+            _inner.OpenDoor(ct);
+            _inner.CloseDoor(ct);
         }
     }
 

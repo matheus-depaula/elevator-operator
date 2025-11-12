@@ -58,7 +58,7 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
 
                 try
                 {
-                    HandleRequest(request);
+                    HandleRequest(request, ct);
                 }
                 catch (ElevatorOperatorException ex)
                 {
@@ -68,9 +68,6 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
                 {
                     _logger.Error("Unexpected error while processing request.", ex);
                 }
-
-                Console.WriteLine();
-
             }
         }
         finally
@@ -80,18 +77,18 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
     }
 
 
-    private void HandleRequest(ElevatorRequest request)
+    private void HandleRequest(ElevatorRequest request, CancellationToken ct)
     {
         var nextRequest = _scheduler.PeekNext();
 
         // Pickup phase
-        ExecuteWithRetry(() => MoveToFloor(request.PickupFloor), "move to pickup");
-        SafeDoorOperation(Elevator.OpenDoor, DoorOperation.Opening, request.PickupFloor);
-        SafeDoorOperation(Elevator.CloseDoor, DoorOperation.Closing, request.PickupFloor);
+        ExecuteWithRetry(() => MoveToFloor(request.PickupFloor, ct), "move to pickup", ct);
+        SafeDoorOperation(Elevator.OpenDoor, DoorOperation.Opening, request.PickupFloor, ct);
+        SafeDoorOperation(Elevator.CloseDoor, DoorOperation.Closing, request.PickupFloor, ct);
 
         // Destination phase
-        ExecuteWithRetry(() => MoveToFloor(request.DestinationFloor), "move to destination");
-        SafeDoorOperation(Elevator.OpenDoor, DoorOperation.Opening, request.DestinationFloor);
+        ExecuteWithRetry(() => MoveToFloor(request.DestinationFloor, ct), "move to destination", ct);
+        SafeDoorOperation(Elevator.OpenDoor, DoorOperation.Opening, request.DestinationFloor, ct);
 
         bool shouldKeepDoorsOpen =
             nextRequest != null &&
@@ -103,11 +100,11 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
         }
         else
         {
-            SafeDoorOperation(Elevator.CloseDoor, DoorOperation.Closing, request.DestinationFloor);
+            SafeDoorOperation(Elevator.CloseDoor, DoorOperation.Closing, request.DestinationFloor, ct);
         }
     }
 
-    private void MoveToFloor(int floor)
+    private void MoveToFloor(int floor, CancellationToken ct)
     {
         if (Elevator.CurrentFloor == floor)
         {
@@ -117,12 +114,12 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
 
         _logger.Info($"Moving to floor {floor}.");
 
-        Elevator.MoveToFloor(floor);
+        Elevator.MoveToFloor(floor, ct);
 
         _logger.Info($"Reached floor {floor}.");
     }
 
-    private void SafeDoorOperation(Action doorAction, DoorOperation operation, int floor)
+    private void SafeDoorOperation(Action<CancellationToken> doorAction, DoorOperation operation, int floor, CancellationToken ct)
     {
         _doorOperationComplete.Reset();
 
@@ -137,9 +134,9 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
 
             ExecuteWithRetry(() =>
             {
-                doorAction();
+                doorAction(ct);
                 _logger.Info($"{operation} doors at floor {floor}.");
-            }, $"{operation} doors");
+            }, $"{operation} doors", ct);
         }
         catch (InvalidStateTransitionException)
         {
@@ -156,7 +153,7 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
     }
 
 
-    private void ExecuteWithRetry(Action action, string context)
+    private void ExecuteWithRetry(Action action, string context, CancellationToken ct)
     {
         for (int attempt = 1; attempt <= MaxRetries + 1; attempt++)
         {

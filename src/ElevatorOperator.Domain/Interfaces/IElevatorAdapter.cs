@@ -2,5 +2,5 @@ namespace ElevatorOperator.Domain.Interfaces;
 
 public interface IElevatorAdapter : IElevator
 {
-    void MoveToFloor(int floor);
+    void MoveToFloor(int floor, CancellationToken ct);
 }

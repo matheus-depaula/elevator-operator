@@ -47,10 +47,12 @@ public class Elevator : IElevator
         get { lock (_syncLock) return [.. _targetFloors]; }
     }
 
-    public void MoveUp()
+    public void MoveUp(CancellationToken ct)
     {
         lock (_syncLock)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (CurrentFloor >= MaxFloor)
                 throw new InvalidOperationException($"Cannot move up from floor {CurrentFloor}");
 
@@ -58,22 +60,24 @@ public class Elevator : IElevator
                 throw new InvalidStateTransitionException(State, ElevatorState.MovingUp);
 
             State = ElevatorState.MovingUp;
-
             _currentFloor++;
         }
 
-        Thread.Sleep(TravelDelayMs); // Simulate travel time (not under lock)
+        Task.Delay(TravelDelayMs, ct).Wait(ct);
 
         lock (_syncLock)
         {
+            ct.ThrowIfCancellationRequested();
             State = ElevatorState.Idle;
         }
     }
 
-    public void MoveDown()
+    public void MoveDown(CancellationToken ct)
     {
         lock (_syncLock)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (CurrentFloor <= MinFloor)
                 throw new InvalidOperationException($"Cannot move down from floor {CurrentFloor}");
 
@@ -81,42 +85,51 @@ public class Elevator : IElevator
                 throw new InvalidStateTransitionException(State, ElevatorState.MovingDown);
 
             State = ElevatorState.MovingDown;
-
             _currentFloor--;
         }
 
-        Thread.Sleep(TravelDelayMs);  // Simulate travel time (not under lock)
+        Task.Delay(TravelDelayMs, ct).Wait(ct);
 
         lock (_syncLock)
         {
+            ct.ThrowIfCancellationRequested();
             State = ElevatorState.Idle;
         }
     }
 
-    public void OpenDoor()
+    public void OpenDoor(CancellationToken ct)
     {
         lock (_syncLock)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (State != ElevatorState.Idle)
                 throw new InvalidStateTransitionException(State, ElevatorState.DoorOpen);
 
             State = ElevatorState.DoorOpen;
         }
 
-        Thread.Sleep(DoorDelayMs); // Simulate door opening time (not under lock)
+        Task.Delay(DoorDelayMs, ct).Wait(ct);
+
+        lock (_syncLock)
+        {
+            ct.ThrowIfCancellationRequested();
+        }
     }
 
-    public void CloseDoor()
+    public void CloseDoor(CancellationToken ct)
     {
         lock (_syncLock)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (State != ElevatorState.DoorOpen)
                 throw new InvalidStateTransitionException(State, ElevatorState.Idle);
 
             State = ElevatorState.Idle;
         }
 
-        Thread.Sleep(DoorDelayMs); // Simulate door closing time (not under lock)
+        Task.Delay(DoorDelayMs, ct).Wait(ct);
     }
 
     public void AddRequest(int floor)
