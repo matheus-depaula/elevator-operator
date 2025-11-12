@@ -10,6 +10,7 @@ public class ElevatorAdapterTests
 {
     private readonly ElevatorAdapter _adapter;
     private readonly Elevator _innerElevator;
+    private readonly CancellationToken _ct = CancellationToken.None;
 
     public ElevatorAdapterTests()
     {
@@ -38,7 +39,7 @@ public class ElevatorAdapterTests
     public void MoveUp_Should_Increment_CurrentFloor_When_Possible()
     {
         _adapter.AddRequest(3);
-        _adapter.MoveUp();
+        _adapter.MoveUp(_ct);
 
         _innerElevator.CurrentFloor.Should().Be(2);
     }
@@ -47,10 +48,10 @@ public class ElevatorAdapterTests
     public void MoveDown_Should_Decrement_CurrentFloor_When_Possible()
     {
         _adapter.AddRequest(1);
-        _adapter.MoveUp();
-        _adapter.MoveUp();
-        _adapter.MoveUp();
-        _adapter.MoveDown();
+        _adapter.MoveUp(_ct);
+        _adapter.MoveUp(_ct);
+        _adapter.MoveUp(_ct);
+        _adapter.MoveDown(_ct);
 
         _innerElevator.CurrentFloor.Should().Be(3);
     }
@@ -58,7 +59,7 @@ public class ElevatorAdapterTests
     [Fact]
     public void MoveToFloor_Should_Reach_Target_Floor()
     {
-        _adapter.MoveToFloor(4);
+        _adapter.MoveToFloor(4, _ct);
 
         _innerElevator.CurrentFloor.Should().Be(4);
         _innerElevator.State.Should().Be(ElevatorState.Idle);
@@ -67,8 +68,8 @@ public class ElevatorAdapterTests
     [Fact]
     public void MoveToFloor_Should_Move_Down_When_Target_Is_Lower()
     {
-        _adapter.MoveToFloor(6);
-        _adapter.MoveToFloor(3);
+        _adapter.MoveToFloor(6, _ct);
+        _adapter.MoveToFloor(3, _ct);
 
         _innerElevator.CurrentFloor.Should().Be(3);
     }

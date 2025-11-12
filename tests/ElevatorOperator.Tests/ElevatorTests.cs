@@ -8,6 +8,7 @@ namespace ElevatorOperator.Tests;
 public class ElevatorTests
 {
     private readonly Elevator _elevator;
+    private readonly CancellationToken _ct = CancellationToken.None;
 
     public ElevatorTests()
     {
@@ -53,7 +54,7 @@ public class ElevatorTests
     [Fact]
     public void MoveUp_Should_Increment_CurrentFloor()
     {
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
         _elevator.CurrentFloor.Should().Be(2);
     }
 
@@ -61,7 +62,7 @@ public class ElevatorTests
     public void MoveUp_Should_Change_State_To_MovingUp_Then_Idle()
     {
         // During move, state should be MovingUp, but after sleep it returns to Idle
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
         _elevator.State.Should().Be(ElevatorState.Idle);
     }
 
@@ -70,12 +71,12 @@ public class ElevatorTests
     {
         // Move to max floor first
         for (int i = 1; i < 10; i++)
-            _elevator.MoveUp();
+            _elevator.MoveUp(_ct);
 
         _elevator.CurrentFloor.Should().Be(10);
 
         // Try to move up from max floor
-        Action act = () => _elevator.MoveUp();
+        Action act = () => _elevator.MoveUp(_ct);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Cannot move up*");
     }
@@ -83,9 +84,9 @@ public class ElevatorTests
     [Fact]
     public void MoveUp_Multiple_Times_Should_Increment_Correctly()
     {
-        _elevator.MoveUp();
-        _elevator.MoveUp();
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
+        _elevator.MoveUp(_ct);
+        _elevator.MoveUp(_ct);
 
         _elevator.CurrentFloor.Should().Be(4);
     }
@@ -94,13 +95,13 @@ public class ElevatorTests
     public void MoveUp_Can_Only_Occur_From_Idle_Or_MovingUp_State()
     {
         // Start at floor 1 (Idle)
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
         // After MoveUp completes, state returns to Idle
         _elevator.State.Should().Be(ElevatorState.Idle);
         _elevator.CurrentFloor.Should().Be(2);
 
         // Can move up again from Idle
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
         _elevator.CurrentFloor.Should().Be(3);
     }
 
@@ -111,8 +112,8 @@ public class ElevatorTests
     [Fact]
     public void MoveDown_Should_Decrement_CurrentFloor()
     {
-        _elevator.MoveUp();
-        _elevator.MoveDown();
+        _elevator.MoveUp(_ct);
+        _elevator.MoveDown(_ct);
 
         _elevator.CurrentFloor.Should().Be(1);
     }
@@ -120,8 +121,8 @@ public class ElevatorTests
     [Fact]
     public void MoveDown_Should_Change_State_To_MovingDown_Then_Idle()
     {
-        _elevator.MoveUp();
-        _elevator.MoveDown();
+        _elevator.MoveUp(_ct);
+        _elevator.MoveDown(_ct);
         _elevator.State.Should().Be(ElevatorState.Idle);
     }
 
@@ -130,7 +131,7 @@ public class ElevatorTests
     {
         _elevator.CurrentFloor.Should().Be(1);
 
-        Action act = () => _elevator.MoveDown();
+        Action act = () => _elevator.MoveDown(_ct);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Cannot move down*");
     }
@@ -140,14 +141,14 @@ public class ElevatorTests
     {
         // Move up to floor 5
         for (int i = 0; i < 4; i++)
-            _elevator.MoveUp();
+            _elevator.MoveUp(_ct);
 
         _elevator.CurrentFloor.Should().Be(5);
 
         // Move down 3 times
-        _elevator.MoveDown();
-        _elevator.MoveDown();
-        _elevator.MoveDown();
+        _elevator.MoveDown(_ct);
+        _elevator.MoveDown(_ct);
+        _elevator.MoveDown(_ct);
 
         _elevator.CurrentFloor.Should().Be(2);
     }
@@ -159,7 +160,7 @@ public class ElevatorTests
     [Fact]
     public void OpenDoor_Should_Change_State_To_DoorOpen()
     {
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.DoorOpen);
     }
 
@@ -169,27 +170,27 @@ public class ElevatorTests
         // The Elevator completes movement before returning, so state is Idle
         // To test this, we would need to intercept mid-movement
         // For now, test that opening when Idle works
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.DoorOpen);
     }
 
     [Fact]
     public void OpenDoor_When_Already_Open_Should_Throw()
     {
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.DoorOpen);
 
-        Action act = () => _elevator.OpenDoor();
+        Action act = () => _elevator.OpenDoor(_ct);
         act.Should().Throw<InvalidStateTransitionException>();
     }
 
     [Fact]
     public void OpenDoor_At_Different_Floors_Should_Work()
     {
-        _elevator.MoveUp();
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
+        _elevator.MoveUp(_ct);
 
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.DoorOpen);
         _elevator.CurrentFloor.Should().Be(3);
     }
@@ -201,10 +202,10 @@ public class ElevatorTests
     [Fact]
     public void CloseDoor_Should_Change_State_To_Idle()
     {
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.DoorOpen);
 
-        _elevator.CloseDoor();
+        _elevator.CloseDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.Idle);
     }
 
@@ -213,7 +214,7 @@ public class ElevatorTests
     {
         _elevator.State.Should().Be(ElevatorState.Idle);
 
-        Action act = () => _elevator.CloseDoor();
+        Action act = () => _elevator.CloseDoor(_ct);
         act.Should().Throw<InvalidStateTransitionException>();
     }
 
@@ -221,20 +222,20 @@ public class ElevatorTests
     public void CloseDoor_When_Moving_Should_Throw()
     {
         // After MoveUp completes, state is Idle
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
 
         // Try to close when Idle (should throw)
-        Action act = () => _elevator.CloseDoor();
+        Action act = () => _elevator.CloseDoor(_ct);
         act.Should().Throw<InvalidStateTransitionException>();
     }
 
     [Fact]
     public void OpenDoor_Then_CloseDoor_Sequence()
     {
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.DoorOpen);
 
-        _elevator.CloseDoor();
+        _elevator.CloseDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.Idle);
     }
 
@@ -318,16 +319,16 @@ public class ElevatorTests
     public void State_Idle_To_MovingUp_Should_Succeed()
     {
         _elevator.State.Should().Be(ElevatorState.Idle);
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
         _elevator.State.Should().Be(ElevatorState.Idle); // After sleep
     }
 
     [Fact]
     public void State_Idle_To_MovingDown_Should_Succeed()
     {
-        _elevator.MoveUp(); // Get to floor 2
+        _elevator.MoveUp(_ct); // Get to floor 2
         _elevator.State.Should().Be(ElevatorState.Idle);
-        _elevator.MoveDown();
+        _elevator.MoveDown(_ct);
         _elevator.State.Should().Be(ElevatorState.Idle); // After sleep
     }
 
@@ -335,16 +336,16 @@ public class ElevatorTests
     public void State_Idle_To_DoorOpen_Should_Succeed()
     {
         _elevator.State.Should().Be(ElevatorState.Idle);
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.DoorOpen);
     }
 
     [Fact]
     public void State_DoorOpen_To_Idle_Should_Succeed()
     {
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.DoorOpen);
-        _elevator.CloseDoor();
+        _elevator.CloseDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.Idle);
     }
 
@@ -353,18 +354,18 @@ public class ElevatorTests
     {
         // IdleToIdle should be allowed
         _elevator.State.Should().Be(ElevatorState.Idle);
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
         _elevator.State.Should().Be(ElevatorState.Idle);
     }
 
     [Fact]
     public void Invalid_State_Transition_Should_Throw()
     {
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().Be(ElevatorState.DoorOpen);
 
         // Try to move while door is open
-        Action act = () => _elevator.MoveUp();
+        Action act = () => _elevator.MoveUp(_ct);
         act.Should().Throw<InvalidStateTransitionException>();
     }
 
@@ -377,7 +378,7 @@ public class ElevatorTests
     {
         // Can only be set through methods
         var initialFloor = _elevator.CurrentFloor;
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
         _elevator.CurrentFloor.Should().NotBe(initialFloor);
     }
 
@@ -386,7 +387,7 @@ public class ElevatorTests
     {
         // Can only be set through methods
         var initialState = _elevator.State;
-        _elevator.OpenDoor();
+        _elevator.OpenDoor(_ct);
         _elevator.State.Should().NotBe(initialState);
     }
 
@@ -412,7 +413,7 @@ public class ElevatorTests
 
         // Move to middle of range
         for (int i = 0; i < 3; i++)
-            _elevator.MoveUp();
+            _elevator.MoveUp(_ct);
 
         var startFloor = _elevator.CurrentFloor;
 
@@ -422,7 +423,7 @@ public class ElevatorTests
             tasks.Add(Task.Run(() =>
             {
                 if (_elevator.CurrentFloor < 10)
-                    _elevator.MoveUp();
+                    _elevator.MoveUp(_ct);
             }));
         }
 
@@ -461,7 +462,7 @@ public class ElevatorTests
             tasks.Add(Task.Run(() =>
             {
                 if (_elevator.CurrentFloor < 10)
-                    _elevator.MoveUp();
+                    _elevator.MoveUp(_ct);
             }));
         }
 
@@ -492,7 +493,7 @@ public class ElevatorTests
         // Move from 1 to 10
         for (int i = 1; i < 10; i++)
         {
-            _elevator.MoveUp();
+            _elevator.MoveUp(_ct);
         }
 
         _elevator.CurrentFloor.Should().Be(10);
@@ -500,7 +501,7 @@ public class ElevatorTests
         // Move from 10 to 1
         for (int i = 10; i > 1; i--)
         {
-            _elevator.MoveDown();
+            _elevator.MoveDown(_ct);
         }
 
         _elevator.CurrentFloor.Should().Be(1);
@@ -511,10 +512,10 @@ public class ElevatorTests
     {
         for (int i = 0; i < 5; i++)
         {
-            _elevator.OpenDoor();
+            _elevator.OpenDoor(_ct);
             _elevator.State.Should().Be(ElevatorState.DoorOpen);
 
-            _elevator.CloseDoor();
+            _elevator.CloseDoor(_ct);
             _elevator.State.Should().Be(ElevatorState.Idle);
         }
     }
@@ -523,14 +524,14 @@ public class ElevatorTests
     public void Mix_All_Operations()
     {
         _elevator.AddRequest(5);
-        _elevator.MoveUp();
-        _elevator.MoveUp();
-        _elevator.OpenDoor();
-        _elevator.CloseDoor();
-        _elevator.MoveUp();
+        _elevator.MoveUp(_ct);
+        _elevator.MoveUp(_ct);
+        _elevator.OpenDoor(_ct);
+        _elevator.CloseDoor(_ct);
+        _elevator.MoveUp(_ct);
         _elevator.AddRequest(8);
-        _elevator.OpenDoor();
-        _elevator.CloseDoor();
+        _elevator.OpenDoor(_ct);
+        _elevator.CloseDoor(_ct);
 
         _elevator.CurrentFloor.Should().Be(4);
         _elevator.State.Should().Be(ElevatorState.Idle);

@@ -29,6 +29,11 @@ public class ElevatorControllerTests
         _mockElevator.SetupGet(e => e.MinFloor).Returns(1);
         _mockElevator.SetupGet(e => e.MaxFloor).Returns(10);
 
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>())).Verifiable();
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>())).Verifiable();
+        _mockElevator.Setup(e => e.OpenDoor(It.IsAny<CancellationToken>())).Verifiable();
+        _mockElevator.Setup(e => e.CloseDoor(It.IsAny<CancellationToken>())).Verifiable();
+
         var elevatorAdapter = new ElevatorAdapter(_mockElevator.Object);
 
         _controller = new ElevatorController(
@@ -133,22 +138,32 @@ public class ElevatorControllerTests
     {
         // Arrange
         var request = new ElevatorRequest(2, 5);
-        _mockScheduler.Setup(s => s.GetNext()).Returns(request);
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Returns(request)
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
         _mockScheduler.Setup(s => s.PeekNext()).Returns((ElevatorRequest?)null);
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(2);
+
+        int currentFloor = 2;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor++);
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
+
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        // Cancel immediately after a short delay to let the test run
+        Task.Delay(50).ContinueWith(_ => cts.Cancel());
 
         // Act
         _controller.ProcessRequests(cts.Token);
 
         // Assert
-        _mockElevator.Verify(e => e.MoveUp(), Times.AtLeastOnce);
+        _mockElevator.Verify(e => e.MoveUp(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -156,22 +171,31 @@ public class ElevatorControllerTests
     {
         // Arrange
         var request = new ElevatorRequest(5, 1);
-        _mockScheduler.Setup(s => s.GetNext()).Returns(request);
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Returns(request)
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
         _mockScheduler.Setup(s => s.PeekNext()).Returns((ElevatorRequest?)null);
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(5);
+
+        int currentFloor = 5;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor++);
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
+
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        Task.Delay(50).ContinueWith(_ => cts.Cancel());
 
         // Act
         _controller.ProcessRequests(cts.Token);
 
         // Assert
-        _mockElevator.Verify(e => e.MoveDown(), Times.AtLeastOnce);
+        _mockElevator.Verify(e => e.MoveDown(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -187,8 +211,8 @@ public class ElevatorControllerTests
         _controller.ProcessRequests(cts.Token);
 
         // Assert
-        _mockElevator.Verify(e => e.MoveUp(), Times.Never);
-        _mockElevator.Verify(e => e.MoveDown(), Times.Never);
+        _mockElevator.Verify(e => e.MoveUp(It.IsAny<CancellationToken>()), Times.Never);
+        _mockElevator.Verify(e => e.MoveDown(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -210,17 +234,18 @@ public class ElevatorControllerTests
     public void ProcessRequests_Should_Handle_ElevatorOperatorException()
     {
         // Arrange
-        _mockScheduler.Setup(s => s.GetNext()).Returns((ElevatorRequest?)null);
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
 
         // Setup elevator to throw invalid state transition
-        _mockElevator.Setup(e => e.OpenDoor()).Throws(() =>
+        _mockElevator.Setup(e => e.OpenDoor(It.IsAny<CancellationToken>())).Throws(() =>
             new InvalidStateTransitionException(ElevatorState.Idle, ElevatorState.MovingUp));
 
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        Task.Delay(10).ContinueWith(_ => cts.Cancel());
 
         // Act & Assert - should not throw
         _controller.Invoking(c => c.ProcessRequests(cts.Token)).Should().NotThrow();
@@ -230,13 +255,15 @@ public class ElevatorControllerTests
     public void ProcessRequests_Should_Handle_Generic_Exception()
     {
         // Arrange
-        _mockScheduler.Setup(s => s.GetNext()).Throws<ArgumentException>();
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Throws<ArgumentException>()
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
 
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        Task.Delay(50).ContinueWith(_ => cts.Cancel());
 
         // Act & Assert - should not throw
         _controller.Invoking(c => c.ProcessRequests(cts.Token)).Should().NotThrow();
@@ -248,22 +275,31 @@ public class ElevatorControllerTests
     {
         // Arrange
         var request = new ElevatorRequest(2, 5);
-        _mockScheduler.Setup(s => s.GetNext()).Returns(request);
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Returns(request)
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
         _mockScheduler.Setup(s => s.PeekNext()).Returns((ElevatorRequest?)null);
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(2);
+
+        int currentFloor = 2;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor++);
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
+
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        Task.Delay(50).ContinueWith(_ => cts.Cancel());
 
         // Act
         _controller.ProcessRequests(cts.Token);
 
         // Assert
-        _mockElevator.Verify(e => e.OpenDoor(), Times.AtLeastOnce);
+        _mockElevator.Verify(e => e.OpenDoor(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -271,22 +307,31 @@ public class ElevatorControllerTests
     {
         // Arrange
         var request = new ElevatorRequest(2, 5);
-        _mockScheduler.Setup(s => s.GetNext()).Returns(request);
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Returns(request)
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
         _mockScheduler.Setup(s => s.PeekNext()).Returns((ElevatorRequest?)null);
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(2);
+
+        int currentFloor = 2;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor++);
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
+
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        Task.Delay(50).ContinueWith(_ => cts.Cancel());
 
         // Act
         _controller.ProcessRequests(cts.Token);
 
         // Assert
-        _mockElevator.Verify(e => e.CloseDoor(), Times.AtLeastOnce);
+        _mockElevator.Verify(e => e.CloseDoor(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -311,11 +356,17 @@ public class ElevatorControllerTests
             .Returns(request2) // During first request processing
             .Returns((ElevatorRequest?)null); // During second request processing
 
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(2);
+        int currentFloor = 2;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor++);
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
+
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(200));
+        Task.Delay(100).ContinueWith(_ => cts.Cancel());
 
         // Act
         _controller.ProcessRequests(cts.Token);
@@ -335,25 +386,33 @@ public class ElevatorControllerTests
     {
         // Arrange
         var request = new ElevatorRequest(2, 5);
-        _mockScheduler.Setup(s => s.GetNext()).Returns(request);
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Returns(request)
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
         _mockScheduler.Setup(s => s.PeekNext()).Returns((ElevatorRequest?)null);
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(2);
+
+        int currentFloor = 2;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
-        // Simulate timeout on first attempt
+        // Simulate timeout on first attempt, then succeed
         int callCount = 0;
-        _mockElevator.Setup(e => e.MoveUp()).Callback(() =>
-        {
-            callCount++;
-            if (callCount == 1)
-                throw new TimeoutException();
-        });
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
+            .Callback(() =>
+            {
+                callCount++;
+                if (callCount == 1)
+                    throw new TimeoutException();
+                currentFloor++;
+            });
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
 
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(500));
+        Task.Delay(100).ContinueWith(_ => cts.Cancel());
 
         // Act
         _controller.ProcessRequests(cts.Token);
@@ -368,19 +427,28 @@ public class ElevatorControllerTests
     {
         // Arrange
         var request = new ElevatorRequest(2, 5);
-        _mockScheduler.Setup(s => s.GetNext()).Returns(request);
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Returns(request)
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
         _mockScheduler.Setup(s => s.PeekNext()).Returns((ElevatorRequest?)null);
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(2);
+
+        int currentFloor = 2;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
-        _mockElevator.Setup(e => e.OpenDoor()).Throws(() =>
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor++);
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
+
+        _mockElevator.Setup(e => e.OpenDoor(It.IsAny<CancellationToken>())).Throws(() =>
             new InvalidStateTransitionException(ElevatorState.Idle, ElevatorState.MovingUp));
 
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(200));
+        Task.Delay(50).ContinueWith(_ => cts.Cancel());
 
         // Act & Assert
         _controller.Invoking(c => c.ProcessRequests(cts.Token)).Should().NotThrow();
@@ -391,19 +459,25 @@ public class ElevatorControllerTests
     {
         // Arrange
         var request = new ElevatorRequest(2, 5);
-        _mockScheduler.Setup(s => s.GetNext()).Returns(request);
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Returns(request)
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
         _mockScheduler.Setup(s => s.PeekNext()).Returns((ElevatorRequest?)null);
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(2);
+
+        int currentFloor = 2;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
-        _mockElevator.Setup(e => e.MoveUp())
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
             .Throws<InvalidOperationException>();
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
 
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(200));
+        Task.Delay(50).ContinueWith(_ => cts.Cancel());
 
         // Act & Assert
         _controller.Invoking(c => c.ProcessRequests(cts.Token)).Should().NotThrow();
@@ -419,23 +493,32 @@ public class ElevatorControllerTests
     {
         // Arrange
         var request = new ElevatorRequest(2, 5);
-        _mockScheduler.Setup(s => s.GetNext()).Returns(request);
+        _mockScheduler.SetupSequence(s => s.GetNext())
+            .Returns(request)
+            .Returns((ElevatorRequest?)null);
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
             .Returns(1)
             .Returns(0);
         _mockScheduler.Setup(s => s.PeekNext()).Returns((ElevatorRequest?)null);
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(2);
+
+        int currentFloor = 2;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor++);
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
+
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        Task.Delay(50).ContinueWith(_ => cts.Cancel());
 
         // Act
         _controller.ProcessRequests(cts.Token);
 
         // Assert - verify key operations were called
-        _mockElevator.Verify(e => e.OpenDoor(), Times.AtLeastOnce, "Should open doors at pickup");
-        _mockElevator.Verify(e => e.CloseDoor(), Times.AtLeastOnce, "Should close doors");
+        _mockElevator.Verify(e => e.OpenDoor(It.IsAny<CancellationToken>()), Times.AtLeastOnce, "Should open doors at pickup");
+        _mockElevator.Verify(e => e.CloseDoor(It.IsAny<CancellationToken>()), Times.AtLeastOnce, "Should close doors");
         _mockLogger.Verify(l => l.Info(It.IsAny<string>()), Times.AtLeastOnce, "Should log operations");
     }
 
@@ -452,20 +535,26 @@ public class ElevatorControllerTests
             .Returns((ElevatorRequest?)null);
 
         _mockScheduler.SetupSequence(s => s.GetPendingCount())
-            .Returns(2)  // First iteration
-            .Returns(1)  // After first request
+            .Returns(2)  // First call during first iteration
+            .Returns(1)  // After first request processed
             .Returns(1)  // Second iteration
-            .Returns(0); // After second request
+            .Returns(0); // After second request processed
 
         _mockScheduler.SetupSequence(s => s.PeekNext())
-            .Returns(request2)
-            .Returns((ElevatorRequest?)null);
+            .Returns(request2) // During first request processing
+            .Returns((ElevatorRequest?)null); // During second request processing
 
-        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(2);
+        int currentFloor = 2;
+        _mockElevator.SetupGet(e => e.CurrentFloor).Returns(() => currentFloor);
         _mockElevator.SetupGet(e => e.State).Returns(ElevatorState.Idle);
 
+        _mockElevator.Setup(e => e.MoveUp(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor++);
+        _mockElevator.Setup(e => e.MoveDown(It.IsAny<CancellationToken>()))
+            .Callback(() => currentFloor--);
+
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(200));
+        Task.Delay(100).ContinueWith(_ => cts.Cancel());
 
         // Act & Assert
         _controller.Invoking(c => c.ProcessRequests(cts.Token)).Should().NotThrow();

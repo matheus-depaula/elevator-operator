@@ -434,7 +434,8 @@ public class LoggerTests : IDisposable
         // Act
         _logger.Info("Test from CLI");
 
-        // Assert
+        // Assert - flush the writer to ensure content is captured
+        _stringWriter.Flush();
         var output = _stringWriter.ToString();
         output.Should().Contain("[INFO]");
         output.Should().Contain("Test from CLI");

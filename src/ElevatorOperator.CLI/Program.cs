@@ -2,6 +2,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using ElevatorOperator.CLI.CompositionRoot;
 
+[assembly: System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+
 internal partial class Program
 {
     private static async Task Main(string[] args)

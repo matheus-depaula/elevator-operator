@@ -49,21 +49,21 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
         {
             while (!ct.IsCancellationRequested)
             {
-                ElevatorRequest? request = null;
-
-                lock (_lock)
-                {
-                    request = _scheduler.GetNext();
-
-                    if (request == null)
-                    {
-                        Monitor.Wait(_lock, TimeSpan.FromMilliseconds(500));
-                        continue;
-                    }
-                }
-
                 try
                 {
+                    ElevatorRequest? request = null;
+
+                    lock (_lock)
+                    {
+                        request = _scheduler.GetNext();
+
+                        if (request == null)
+                        {
+                            Monitor.Wait(_lock, TimeSpan.FromMilliseconds(500));
+                            continue;
+                        }
+                    }
+
                     HandleRequest(request, ct);
                 }
                 catch (ElevatorOperatorException ex)

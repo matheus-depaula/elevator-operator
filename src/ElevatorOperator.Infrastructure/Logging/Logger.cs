@@ -5,8 +5,6 @@ namespace ElevatorOperator.Infrastructure.Logging;
 
 public class Logger : ILogger
 {
-    private readonly TextWriter _synchronizedOutput = TextWriter.Synchronized(Console.Out);
-
     private static string Timestamp => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
 
     /// <summary>Logs an informational message in blue color with timestamp and calling class name.</summary>
@@ -45,15 +43,15 @@ public class Logger : ILogger
         {
             Console.ForegroundColor = color;
 
-            _synchronizedOutput.WriteLine($"[{Timestamp}] [{level}] [{declaringType}] {message}");
+            Console.Out.WriteLine($"[{Timestamp}] [{level}] [{declaringType}] {message}");
 
             if (ex != null)
             {
-                _synchronizedOutput.WriteLine($"[{Timestamp}] [EXCEPTION] {ex.GetType().Name}: {ex.Message}");
-                _synchronizedOutput.WriteLine(ex.StackTrace);
+                Console.Out.WriteLine($"[{Timestamp}] [EXCEPTION] {ex.GetType().Name}: {ex.Message}");
+                Console.Out.WriteLine(ex.StackTrace);
             }
 
-            _synchronizedOutput.Flush();
+            Console.Out.Flush();
             Console.ResetColor();
         }
     }
