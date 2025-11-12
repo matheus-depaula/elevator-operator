@@ -9,7 +9,7 @@ public class Elevator : IElevator
     public const int TravelDelayMs = 300;
     private const int DoorDelayMs = 500;
 
-    private readonly Lock _syncLock = new();
+    private readonly object _syncLock = new();
     private readonly List<int> _targetFloors = [];
     private ElevatorState _state = ElevatorState.Idle;
     private int _currentFloor;

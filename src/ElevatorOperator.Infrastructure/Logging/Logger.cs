@@ -5,7 +5,7 @@ namespace ElevatorOperator.Infrastructure.Logging;
 
 public class Logger : ILogger
 {
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
 
     private static string Timestamp => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
 

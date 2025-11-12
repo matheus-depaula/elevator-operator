@@ -11,7 +11,7 @@ namespace ElevatorOperator.Domain.Adapters;
 public class ElevatorAdapter(IElevator elevator) : IElevatorAdapter
 {
     private readonly IElevator _inner = elevator ?? throw new ArgumentNullException(nameof(elevator));
-    private readonly Lock _adapterLock = new();
+    private readonly object _adapterLock = new();
 
     public int MinFloor
     {
