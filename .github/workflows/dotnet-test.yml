@@ -31,14 +31,16 @@ jobs:
         mkdir -p TestResults
         echo "Running tests (attempt 1)..."
         if dotnet test --no-build --configuration Debug \
-          --logger "trx;LogFileName=TestResults/test-results.trx" \
+          --results-directory TestResults \
+          --logger "trx;LogFileName=test-results.trx" \
           --logger "console;verbosity=detailed"; then
           echo "Tests passed on first attempt."
         else
           echo "::warning::Tests failed on first attempt. Retrying once..."
           sleep 5
           dotnet test --no-build --configuration Debug \
-            --logger "trx;LogFileName=TestResults/test-results-retry.trx" \
+            --results-directory TestResults \
+            --logger "trx;LogFileName=test-results-retry.trx" \
             --logger "console;verbosity=detailed" || echo "::error::Tests failed again after retry."
         fi
 
@@ -48,10 +50,13 @@ jobs:
       run: |
         dotnet tool install -g dotnet-reportgenerator-globaltool
         export PATH="$PATH:~/.dotnet/tools"
+        echo "Looking for .trx files in:"
+        find TestResults -type f -name "*.trx" || echo "⚠️ No .trx files found"
         reportgenerator \
           -reports:"TestResults/**/*.trx" \
           -targetdir:"TestResults/report" \
-          -reporttypes:HtmlInline_AzurePipelines
+          -reporttypes:HtmlInline_AzurePipelines || echo "::warning::No .trx reports found to generate HTML."
+
 
     # 📦 Upload all test results
     - name: Upload test artifacts
