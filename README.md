@@ -39,6 +39,79 @@ dotnet build
 dotnet run --project src/ElevatorOperator.CLI/ElevatorOperator.CLI.csproj
 ```
 
+## Building for Production
+
+### Single Platform Build
+
+Build a self-contained executable for your platform:
+
+**macOS (Apple Silicon):**
+```bash
+dotnet publish src/ElevatorOperator.CLI/ElevatorOperator.CLI.csproj -c Release -r osx-arm64 \
+  --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -o dist/osx-arm64
+```
+
+**Windows (x64):**
+```bash
+dotnet publish src/ElevatorOperator.CLI/ElevatorOperator.CLI.csproj -c Release -r win-x64 \
+  --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -o dist/win-x64
+```
+
+**Linux (x64):**
+```bash
+dotnet publish src/ElevatorOperator.CLI/ElevatorOperator.CLI.csproj -c Release -r linux-x64 \
+  --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -o dist/linux-x64
+```
+
+### Build All Platforms at Once
+
+**Option 1: Using the build script**
+
+Use the provided build script to generate executables for all platforms:
+```bash
+./scripts/build.sh
+```
+
+**Option 2: Using VS Code Tasks**
+
+VS Code tasks are configured in `.vscode/tasks.json`. Build using:
+- Press `Cmd+Shift+B` (macOS) or `Ctrl+Shift+B` (Windows/Linux)
+- Select one of the available tasks:
+  - "Build for macOS (Apple Silicon)" - Creates macOS executable
+  - "Build for Windows" - Creates Windows executable
+  - "Build for Linux" - Creates Linux executable
+  - "Build All Platforms" - Creates executables for all platforms
+
+Both methods create self-contained, single-file executables in the `dist/` directory:
+- `dist/osx-arm64/` - macOS executable
+- `dist/win-x64/` - Windows executable
+- `dist/linux-x64/` - Linux executable
+
+## Running the Application
+
+### Development Mode
+```bash
+dotnet run --project src/ElevatorOperator.CLI/ElevatorOperator.CLI.csproj
+```
+
+### Production (Pre-built Executable)
+After building, run the executable from the `dist/` directory:
+
+**macOS:**
+```bash
+./dist/osx-arm64/ElevatorOperator.CLI
+```
+
+**Windows:**
+```bash
+./dist/win-x64/ElevatorOperator.CLI.exe
+```
+
+**Linux:**
+```bash
+./dist/linux-x64/ElevatorOperator.CLI
+```
+
 ## Project Structure
 
 ```
