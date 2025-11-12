@@ -1,4 +1,4 @@
-name: 🚀 Build and Release ElevatorOperator
+name: Build and Release
 
 on:
   push:
@@ -8,15 +8,17 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8
+      - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Build executables (macOS + Windows)
         run: bash scripts/build.sh
