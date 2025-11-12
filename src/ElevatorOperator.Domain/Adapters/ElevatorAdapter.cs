@@ -81,6 +81,10 @@ public class ElevatorAdapter(IElevator elevator) : IElevatorAdapter
         }
     }
 
+    /// <summary>Moves elevator to target floor step-by-step with automatic door management. Validates floor range and handles state transitions.</summary>
+    /// <param name="floor">The target floor to reach.</param>
+    /// <param name="ct">Cancellation token to stop operation.</param>
+    /// <exception cref="InvalidFloorException">Thrown if floor is outside the valid range.</exception>
     public void MoveToFloor(int floor, CancellationToken ct)
     {
         ValidateFloor(floor);
@@ -110,6 +114,7 @@ public class ElevatorAdapter(IElevator elevator) : IElevatorAdapter
         }
     }
 
+    /// <summary>Forces elevator to Idle state as a recovery mechanism. Delegates to inner elevator's recovery method within thread-safe lock.</summary>
     public void ForceRecoveryToIdle()
     {
         lock (_adapterLock)

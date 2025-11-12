@@ -17,6 +17,9 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
     private volatile bool _isProcessing = false;
     private readonly AutoResetEvent _doorOperationComplete = new(true);
 
+    /// <summary>Enqueues a passenger request for elevator service. Validates floors and signals the processing thread.</summary>
+    /// <param name="pickup">The floor where the passenger is waiting.</param>
+    /// <param name="destination">The floor where the passenger wants to go.</param>
     public void RequestElevator(int pickup, int destination)
     {
         lock (_lock)
@@ -34,6 +37,9 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
         }
     }
 
+    /// <summary>Processes all enqueued requests. Runs indefinitely until cancellation is requested. Only one instance can run at a time.</summary>
+    /// <param name="ct">Cancellation token to stop processing.</param>
+    /// <exception cref="InvalidOperationException">Thrown if ProcessRequests is already running.</exception>
     public void ProcessRequests(CancellationToken ct)
     {
         if (Interlocked.CompareExchange(ref _isProcessing, true, false))
@@ -77,6 +83,9 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
     }
 
 
+    /// <summary>Orchestrates handling of a single elevator request: moves to pickup, opens/closes doors, moves to destination, with door optimization if next pickup is at destination.</summary>
+    /// <param name="request">The elevator request with pickup and destination floors.</param>
+    /// <param name="ct">Cancellation token to stop operation.</param>
     private void HandleRequest(ElevatorRequest request, CancellationToken ct)
     {
         var nextRequest = _scheduler.PeekNext();
@@ -104,6 +113,9 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
         }
     }
 
+    /// <summary>Moves elevator to specified floor with logging. Logs if already at floor.</summary>
+    /// <param name="floor">The target floor to reach.</param>
+    /// <param name="ct">Cancellation token to stop operation.</param>
     private void MoveToFloor(int floor, CancellationToken ct)
     {
         if (Elevator.CurrentFloor == floor)
@@ -119,6 +131,11 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
         _logger.Info($"Reached floor {floor}.");
     }
 
+    /// <summary>Safely executes door operations (open/close) with retry logic and state validation. Skips redundant operations and handles exceptions gracefully.</summary>
+    /// <param name="doorAction">The door action to execute (e.g., OpenDoor, CloseDoor).</param>
+    /// <param name="operation">The door operation type for logging.</param>
+    /// <param name="floor">The floor where the operation occurs.</param>
+    /// <param name="ct">Cancellation token to stop operation.</param>
     private void SafeDoorOperation(Action<CancellationToken> doorAction, DoorOperation operation, int floor, CancellationToken ct)
     {
         _doorOperationComplete.Reset();
@@ -153,6 +170,10 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
     }
 
 
+    /// <summary>Executes an action with timeout and retry logic. On timeout, forces recovery to Idle state and retries up to MaxRetries times.</summary>
+    /// <param name="action">The action to execute.</param>
+    /// <param name="context">Description of the action for logging purposes.</param>
+    /// <param name="ct">Cancellation token to stop operation.</param>
     private void ExecuteWithRetry(Action action, string context, CancellationToken ct)
     {
         for (int attempt = 1; attempt <= MaxRetries + 1; attempt++)

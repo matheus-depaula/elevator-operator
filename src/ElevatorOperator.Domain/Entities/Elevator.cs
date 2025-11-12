@@ -22,12 +22,14 @@ public class Elevator : IElevator
         _currentFloor = MinFloor;
     }
 
+    /// <summary>Gets the current floor the elevator is on. Thread-safe.</summary>
     public int CurrentFloor
     {
         get { lock (_syncLock) return _currentFloor; }
         private set { lock (_syncLock) _currentFloor = value; }
     }
 
+    /// <summary>Gets the current operational state. Thread-safe with validation on state transitions.</summary>
     public ElevatorState State
     {
         get { lock (_syncLock) return _state; }
@@ -42,11 +44,15 @@ public class Elevator : IElevator
         }
     }
 
+    /// <summary>Gets a snapshot of all requested target floors. Thread-safe.</summary>
     public IReadOnlyList<int> TargetFloors
     {
         get { lock (_syncLock) return [.. _targetFloors]; }
     }
 
+    /// <summary>Moves elevator up one floor. Changes state to MovingUp, increments floor, simulates travel with cancellation support.</summary>
+    /// <exception cref="InvalidOperationException">Thrown if already at maximum floor.</exception>
+    /// <exception cref="InvalidStateTransitionException">Thrown if state transition is invalid.</exception>
     public void MoveUp(CancellationToken ct)
     {
         lock (_syncLock)
@@ -72,6 +78,9 @@ public class Elevator : IElevator
         }
     }
 
+    /// <summary>Moves elevator down one floor. Changes state to MovingDown, decrements floor, simulates travel with cancellation support.</summary>
+    /// <exception cref="InvalidOperationException">Thrown if already at minimum floor.</exception>
+    /// <exception cref="InvalidStateTransitionException">Thrown if state transition is invalid.</exception>
     public void MoveDown(CancellationToken ct)
     {
         lock (_syncLock)
@@ -97,6 +106,8 @@ public class Elevator : IElevator
         }
     }
 
+    /// <summary>Opens elevator doors. Changes state to DoorOpen, simulates door opening with cancellation support.</summary>
+    /// <exception cref="InvalidStateTransitionException">Thrown if elevator is not Idle.</exception>
     public void OpenDoor(CancellationToken ct)
     {
         lock (_syncLock)
@@ -117,6 +128,8 @@ public class Elevator : IElevator
         }
     }
 
+    /// <summary>Closes elevator doors. Changes state from DoorOpen to Idle, simulates door closing with cancellation support.</summary>
+    /// <exception cref="InvalidStateTransitionException">Thrown if doors are not open.</exception>
     public void CloseDoor(CancellationToken ct)
     {
         lock (_syncLock)
@@ -132,6 +145,9 @@ public class Elevator : IElevator
         Task.Delay(DoorDelayMs, ct).Wait(ct);
     }
 
+    /// <summary>Adds a floor request to the target floors list. No-op if floor already requested. Thread-safe.</summary>
+    /// <param name="floor">The floor to add to requests.</param>
+    /// <exception cref="InvalidFloorException">Thrown if floor is outside the valid range (1-10).</exception>
     public void AddRequest(int floor)
     {
         if (floor < MinFloor || floor > MaxFloor)
