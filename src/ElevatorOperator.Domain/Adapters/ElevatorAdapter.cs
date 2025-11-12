@@ -110,6 +110,14 @@ public class ElevatorAdapter(IElevator elevator) : IElevatorAdapter
         }
     }
 
+    public void ForceRecoveryToIdle()
+    {
+        lock (_adapterLock)
+        {
+            _inner.ForceRecoveryToIdle();
+        }
+    }
+
     private void ValidateFloor(int floor)
     {
         if (floor < _inner.MinFloor || floor > _inner.MaxFloor)

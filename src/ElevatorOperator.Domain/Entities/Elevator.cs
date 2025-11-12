@@ -144,6 +144,18 @@ public class Elevator : IElevator
         }
     }
 
+    /// <summary>
+    /// Forces elevator to Idle state as a recovery mechanism for timeout/error states.
+    /// Bypasses normal state validation to recover from stuck states.
+    /// </summary>
+    public void ForceRecoveryToIdle()
+    {
+        lock (_syncLock)
+        {
+            _state = ElevatorState.Idle;
+        }
+    }
+
     private static bool IsValidStateTransition(ElevatorState current, ElevatorState target)
     {
         return (current, target) switch

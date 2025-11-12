@@ -166,6 +166,15 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
             {
                 _logger.Warn($"Timeout during {context} (attempt {attempt}).");
 
+                try
+                {
+                    RecoverFromTimeout();
+                }
+                catch (Exception recoveryEx)
+                {
+                    _logger.Error("Recovery from timeout failed.", recoveryEx);
+                }
+
                 if (attempt <= MaxRetries)
                 {
                     _logger.Info($"Retrying {context}...");
@@ -185,6 +194,26 @@ public class ElevatorController(IElevatorAdapter elevator, IScheduler<ElevatorRe
                 _logger.Error($"Error during {context}.", ex);
                 break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Recovers elevator from timeout state by forcing it to a known safe state (Idle).
+    /// This prevents stuck elevators in intermediate states like MovingUp/MovingDown/DoorOpen.
+    /// </summary>
+    private void RecoverFromTimeout()
+    {
+        _logger.Warn("Attempting to recover elevator from timeout state to Idle.");
+
+        try
+        {
+            Elevator.ForceRecoveryToIdle();
+            _logger.Info("Elevator forced to Idle state for recovery.");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Failed to force elevator to Idle state during recovery.", ex);
+            throw;
         }
     }
 

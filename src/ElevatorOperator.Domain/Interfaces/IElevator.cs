@@ -14,4 +14,5 @@ public interface IElevator
     void OpenDoor(CancellationToken ct);
     void CloseDoor(CancellationToken ct);
     void AddRequest(int floor);
+    void ForceRecoveryToIdle();
 }
