@@ -5,7 +5,6 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch:
 
 jobs:
   build:
@@ -25,7 +24,7 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Debug
 
-    # 🧠 Run tests with detailed output and retry strategy
+    # 🧠 Run tests with retry and detailed logging
     - name: Run tests with retry
       id: run-tests
       run: |
@@ -33,33 +32,40 @@ jobs:
         mkdir -p TestResults
         echo "Running tests (attempt 1)..."
         if dotnet test --no-build --configuration Debug \
-          --logger "trx;LogFileName=test-results.trx" \
+          --logger "trx;LogFileName=TestResults/test-results.trx" \
           --logger "console;verbosity=detailed"; then
           echo "Tests passed on first attempt."
         else
           echo "::warning::Tests failed on first attempt. Retrying once..."
           sleep 5
           dotnet test --no-build --configuration Debug \
-            --logger "trx;LogFileName=test-results-retry.trx" \
+            --logger "trx;LogFileName=TestResults/test-results-retry.trx" \
             --logger "console;verbosity=detailed" || echo "::error::Tests failed again after retry."
         fi
 
-    # 📦 Upload test results (always)
-    - name: Upload test results
+    # 📊 Generate HTML report
+    - name: Generate HTML report
+      if: always()
+      run: |
+        dotnet tool install -g trx2html
+        export PATH="$PATH:~/.dotnet/tools"
+        trx2html TestResults/**/*.trx -o TestResults/report.html
+
+    # 📦 Upload all test results
+    - name: Upload test artifacts
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: dotnet-test-results
         path: |
-          **/TestResults/*.trx
-          **/test-results.trx
-          **/test-results-retry.trx
+          TestResults/**/*.trx
+          TestResults/report.html
 
-    # 🧰 Optional: Fail workflow explicitly if tests failed both times
+    # 🚦 Optional: fail job if all retries failed
     - name: Check test outcome
       if: always()
       run: |
-        if grep -q "::error::Tests failed again" $GITHUB_STEP_SUMMARY 2>/dev/null; then
+        if grep -q "::error::Tests failed again" "$GITHUB_STEP_SUMMARY" 2>/dev/null; then
           echo "Some tests failed after retry. See artifacts for details."
           exit 1
         fi
